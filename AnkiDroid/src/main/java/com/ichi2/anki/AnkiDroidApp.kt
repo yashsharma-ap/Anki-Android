@@ -32,9 +32,15 @@ import androidx.annotation.VisibleForTesting
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
 import anki.collection.OpChanges
+import com.adpushup.apmobilesdk.ApMobileSdk
+import com.adpushup.apmobilesdk.ads.ApAppOpen
 import com.ichi2.anki.CrashReportService.sendExceptionReport
 import com.ichi2.anki.analytics.UsageAnalytics
 import com.ichi2.anki.browser.SharedPreferencesLastDeckIdRepository
@@ -78,7 +84,8 @@ import java.util.Locale
 open class AnkiDroidApp :
     Application(),
     Configuration.Provider,
-    ChangeManager.Subscriber {
+    ChangeManager.Subscriber,
+    LifecycleEventObserver {
     /** An exception if the WebView subsystem fails to load  */
     private var webViewError: Throwable? = null
     private val notifications = MutableLiveData<Void?>()
@@ -88,6 +95,8 @@ open class AnkiDroidApp :
 
     /** Used to avoid showing extra progress dialogs when one already shown. */
     var progressDialogShown = false
+    private lateinit var apAppOpen: ApAppOpen
+    private var currentActivity: Activity? = null
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().build()
@@ -97,6 +106,8 @@ open class AnkiDroidApp :
      * On application creation.
      */
     override fun onCreate() {
+        ApMobileSdk.init(this, "test-geniee-config")
+        apAppOpen = ApAppOpen()
         try {
             Os.setenv("PLATFORM", syncPlatform(), false)
             // enable debug logging of sync actions
@@ -215,7 +226,7 @@ open class AnkiDroidApp :
 
         // listen for day rollover: time + timezone changes
         DayRolloverHandler.listenForRolloverEvents(this)
-
+        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
         registerActivityLifecycleCallbacks(
             object : ActivityLifecycleCallbacks {
                 override fun onActivityCreated(
@@ -232,6 +243,10 @@ open class AnkiDroidApp :
                 }
 
                 override fun onActivityStarted(activity: Activity) {
+                    // Updating the currentActivity only when an ad is not showing.
+                    if (!apAppOpen.isShowingAd) {
+                        currentActivity = activity
+                    }
                     Timber.i("${activity::class.simpleName}::onStart")
                 }
 
@@ -477,5 +492,19 @@ open class AnkiDroidApp :
                 }
                 return ExceptionUtil.getExceptionMessage(error)
             }
+    }
+
+    override fun onStateChanged(
+        source: LifecycleOwner,
+        event: Lifecycle.Event,
+    ) {
+        Timber.tag(TAG).d("Lifecycle event: $event")
+        if (event == Lifecycle.Event.ON_START) {
+            // Show the ad (if available) when the app moves to foreground.
+            Timber.d("Showing app open ad")
+            currentActivity?.let {
+                apAppOpen.showAd(it, "testAppOpenPlacementId") {}
+            }
+        }
     }
 }

@@ -102,6 +102,9 @@
         android:enableOnBackInvokedCallback="true"
         android:manageSpaceActivity="com.ichi2.anki.ui.windows.managespace.ManageSpaceActivity"
         >
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-7688823534494428~8278616744"/>
         <!-- Probably because of a bug on the framework,
         the full package path is needed for manageSpaceActivity -->
         <activity

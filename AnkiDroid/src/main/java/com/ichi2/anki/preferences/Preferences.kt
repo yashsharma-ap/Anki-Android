@@ -23,6 +23,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.XmlRes
 import androidx.core.os.bundleOf
@@ -31,6 +32,8 @@ import androidx.fragment.app.FragmentTransaction
 import androidx.fragment.app.commit
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
+import com.adpushup.apmobilesdk.ads.ApBanner
+import com.adpushup.apmobilesdk.interfaces.ApBannerListener
 import com.bytehamster.lib.preferencesearch.SearchConfiguration
 import com.bytehamster.lib.preferencesearch.SearchPreferenceResult
 import com.bytehamster.lib.preferencesearch.SearchPreferenceResultListener
@@ -66,6 +69,7 @@ class PreferencesFragment :
         view: View,
         savedInstanceState: Bundle?,
     ) {
+        loadAd(view)
         view
             .findViewById<MaterialToolbar>(R.id.toolbar)
             .setNavigationOnClickListener { onBackPressedCallback.handleOnBackPressed() }
@@ -133,6 +137,65 @@ class PreferencesFragment :
 
         Timber.i("Highlighting key '%s' on %s", result.key, fragment)
         result.highlight(fragment as PreferenceFragmentCompat)
+    }
+
+    private lateinit var apBanner: ApBanner
+
+    private fun loadAd(view: View) {
+        try {
+            // Create and load the banner ad
+            apBanner = ApBanner("testPlacementId")
+            val adView = apBanner.getAdView(requireContext())
+
+            val adContainer = view.findViewById<FrameLayout>(R.id.banner_ad_container)
+
+            adContainer?.addView(adView)
+            apBanner.loadAd(
+                requireContext(),
+                object : ApBannerListener {
+                    override fun onAdClosed() {
+                        ts("Ad Closed By User")
+                    }
+
+                    override fun onError(
+                        code: Int,
+                        error: String,
+                    ) {
+                        ts("Error $code : $error")
+                    }
+
+                    override fun onWarning(
+                        code: Int,
+                        error: String,
+                    ) {
+                        ts("Warning $code : $error")
+                    }
+
+                    override fun onAdOpened() {
+                        ts("Ad Opened")
+                    }
+
+                    override fun onAdLoaded() {
+                        ts("Ad Loading Finished")
+                    }
+
+                    override fun onAdClicked() {
+                        ts("User Just Clicked on Ad")
+                    }
+
+                    override fun onAdImpression() {
+                        ts("Ad Impression Shown.")
+                    }
+                },
+            )
+        } catch (e: Exception) {
+            ts("Exception loading ad: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    private fun ts(message: String) {
+        Timber.d(message)
     }
 
     private fun setFragmentTitleOnToolbar(fragment: Fragment) {

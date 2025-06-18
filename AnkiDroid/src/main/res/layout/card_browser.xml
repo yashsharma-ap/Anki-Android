@@ -9,4 +9,9 @@
         <include layout="@layout/toolbar" />
         <include layout="@layout/cardbrowser" />
     </LinearLayout>
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/player"
+        android:layout_width="360dp"
+        android:layout_height="240dp"
+        android:layout_gravity="bottom|center_horizontal"/>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

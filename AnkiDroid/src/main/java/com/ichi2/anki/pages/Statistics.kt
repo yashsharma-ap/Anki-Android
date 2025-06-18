@@ -22,8 +22,11 @@ import android.print.PrintAttributes
 import android.print.PrintManager
 import android.view.View
 import android.widget.AdapterView.INVALID_POSITION
+import android.widget.FrameLayout
 import android.widget.Spinner
 import androidx.core.content.ContextCompat.getSystemService
+import com.adpushup.apmobilesdk.ads.ApBanner
+import com.adpushup.apmobilesdk.interfaces.ApBannerListener
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.ichi2.anki.CollectionManager
@@ -38,6 +41,7 @@ import com.ichi2.anki.utils.getTimestamp
 import com.ichi2.libanki.DeckId
 import com.ichi2.libanki.DeckNameId
 import com.ichi2.utils.BundleUtils.getNullableLong
+import timber.log.Timber
 
 class Statistics :
     PageFragment(R.layout.statistics),
@@ -51,6 +55,7 @@ class Statistics :
         savedInstanceState: Bundle?,
     ) {
         super.onViewCreated(view, savedInstanceState)
+        loadAd(view)
         webView.isNestedScrollingEnabled = true
 
         spinner = view.findViewById(R.id.deck_selector)
@@ -124,6 +129,65 @@ class Statistics :
             outState.putLong(KEY_DECK_ID, selectedDeck.id)
             outState.putString(KEY_DECK_NAME, selectedDeck.name)
         }
+    }
+
+    private lateinit var apBanner: ApBanner
+
+    private fun loadAd(view: View) {
+        try {
+            // Create and load the banner ad
+            apBanner = ApBanner("testPlacementId")
+            val adView = apBanner.getAdView(requireContext())
+
+            val adContainer = view.findViewById<FrameLayout>(R.id.banner_ad_container)
+
+            adContainer?.addView(adView)
+            apBanner.loadAd(
+                requireContext(),
+                object : ApBannerListener {
+                    override fun onAdClosed() {
+                        ts("Ad Closed By User")
+                    }
+
+                    override fun onError(
+                        code: Int,
+                        error: String,
+                    ) {
+                        ts("Error $code : $error")
+                    }
+
+                    override fun onWarning(
+                        code: Int,
+                        error: String,
+                    ) {
+                        ts("Warning $code : $error")
+                    }
+
+                    override fun onAdOpened() {
+                        ts("Ad Opened")
+                    }
+
+                    override fun onAdLoaded() {
+                        ts("Ad Loading Finished")
+                    }
+
+                    override fun onAdClicked() {
+                        ts("User Just Clicked on Ad")
+                    }
+
+                    override fun onAdImpression() {
+                        ts("Ad Impression Shown.")
+                    }
+                },
+            )
+        } catch (e: Exception) {
+            ts("Exception loading ad: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    private fun ts(message: String) {
+        Timber.d(message)
     }
 
     private val decksAdapterSequence

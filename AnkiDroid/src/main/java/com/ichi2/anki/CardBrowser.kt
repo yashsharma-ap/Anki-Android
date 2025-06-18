@@ -50,10 +50,12 @@ import androidx.fragment.app.FragmentContainerView
 import androidx.fragment.app.commit
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import anki.collection.OpChanges
+import com.adpushup.apmobilesdk.video.ApVideo
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.snackbar.Snackbar
 import com.ichi2.anim.ActivityTransitionAnimation.Direction
@@ -210,6 +212,14 @@ open class CardBrowser :
 
     // DEFECT: Doesn't need to be a local
     private var tagsDialogListenerAction: TagsDialogListenerAction? = null
+    private var apVideo: ApVideo? = null
+
+    private fun showAd() {
+        val playerView = findViewById<PlayerView>(R.id.player)
+
+        apVideo = ApVideo("testVideoPlacementId", playerView)
+        apVideo?.start(this@CardBrowser)
+    }
 
     private var onEditCardActivityResult =
         registerForActivityResult(StartActivityForResult()) { result: ActivityResult ->
@@ -412,7 +422,8 @@ open class CardBrowser :
 
         setContentView(R.layout.card_browser)
         initNavigationDrawer(findViewById(android.R.id.content))
-
+        // Show Ap Ad
+        showAd()
         noteEditorFrame = findViewById(R.id.note_editor_frame)
 
         /**
@@ -1024,6 +1035,7 @@ open class CardBrowser :
         if (!isFinishing) {
             updateInBackground(this)
         }
+        apVideo?.stop()
     }
 
     override fun onPause() {
@@ -1031,6 +1043,7 @@ open class CardBrowser :
         // If the user entered something into the search, but didn't press "search", clear this.
         // It's confusing if the bar is shown with a query that does not relate to the data on the screen
         viewModel.removeUnsubmittedInput()
+        apVideo?.destroy()
     }
 
     override fun onResume() {

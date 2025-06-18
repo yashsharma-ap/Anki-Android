@@ -44,6 +44,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewPropertyAnimator
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
@@ -85,6 +86,10 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import anki.collection.OpChanges
 import anki.sync.SyncStatusResponse
+import com.adpushup.apmobilesdk.ApMobileSdk
+import com.adpushup.apmobilesdk.ads.ApBanner
+import com.adpushup.apmobilesdk.interfaces.ApBannerListener
+import com.adpushup.apmobilesdk.interfaces.ApRewardedInterstitialListener
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.snackbar.BaseTransientBottomBar
@@ -323,6 +328,64 @@ open class DeckPicker :
     private var toolbarSearchView: AccessibleSearchView? = null
 
     override val permissionScreenLauncher = recreateActivityResultLauncher()
+    private lateinit var apBanner: ApBanner
+
+    private fun loadAd() {
+        try {
+            // Create and load the banner ad
+            apBanner = ApBanner("testPlacementId")
+            val adView = apBanner.getAdView(applicationContext)
+
+            val adContainer = findViewById<FrameLayout>(R.id.banner_ad_container)
+
+            adContainer?.addView(adView)
+            apBanner.loadAd(
+                this,
+                object : ApBannerListener {
+                    override fun onAdClosed() {
+                        ts("Ad Closed By User")
+                    }
+
+                    override fun onError(
+                        code: Int,
+                        error: String,
+                    ) {
+                        ts("Error $code : $error")
+                    }
+
+                    override fun onWarning(
+                        code: Int,
+                        error: String,
+                    ) {
+                        ts("Warning $code : $error")
+                    }
+
+                    override fun onAdOpened() {
+                        ts("Ad Opened")
+                    }
+
+                    override fun onAdLoaded() {
+                        ts("Ad Loading Finished")
+                    }
+
+                    override fun onAdClicked() {
+                        ts("User Just Clicked on Ad")
+                    }
+
+                    override fun onAdImpression() {
+                        ts("Ad Impression Shown.")
+                    }
+                },
+            )
+        } catch (e: Exception) {
+            ts("Exception loading ad: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    private fun ts(message: String) {
+        Timber.d(message)
+    }
 
     private val reviewLauncher =
         registerForActivityResult(
@@ -548,6 +611,12 @@ open class DeckPicker :
 
         // create inherited navigation drawer layout here so that it can be used by parent class
         initNavigationDrawer(mainView)
+        // Show Ad using Ap Mobile SDK
+        loadAd()
+        findViewById<FloatingActionButton>(R.id.fab_main).setOnClickListener {
+            ApMobileSdk.showInterstitialAd(this, "testPlacementId") {
+            }
+        }
         title = resources.getString(R.string.app_name)
 
         deckPickerContent = findViewById(R.id.deck_picker_content)
@@ -604,6 +673,22 @@ open class DeckPicker :
             DeckPickerFloatingActionMenu(this, view, this).apply {
                 toggleListener =
                     FloatingActionBarToggleListener { isOpening ->
+                        ApMobileSdk.showRewardedInterstitialAd(
+                            this@DeckPicker,
+                            "testPlacementId",
+                            object : ApRewardedInterstitialListener {
+                                override fun onUserEarnedReward(
+                                    p0: String?,
+                                    p1: Int,
+                                ) {
+                                    ts(p0 + "")
+                                }
+
+                                override fun onComplete() {
+                                    ts("shown rewarded ad")
+                                }
+                            },
+                        )
                         closeFloatingActionBarBackPressCallback.isEnabled = isOpening
                     }
             }
@@ -1291,6 +1376,7 @@ open class DeckPicker :
     }
 
     override fun onResume() {
+        ApMobileSdk.resume(this)
         activityPaused = false
         // stop onResume() processing the message.
         // we need to process the message after `loadDeckCounts` is added in refreshState
